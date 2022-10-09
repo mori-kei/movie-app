@@ -40,7 +40,6 @@ type application struct {
 	logger *log.Logger
 	models models.Models
 }
-
 func main() {
 	var cfg config
 	flag.IntVar(&cfg.port, "port", 4000, "Server port to listen on")

@@ -88,8 +88,8 @@ type MoviePayload struct {
 	Description string `json:"Description"`
 	Year        string `json:"year"`
 	ReleaseDate string `json:"release_date"`
-	RunTime     string `json:"runtime"`
-	Rating      string `json:"rating"`
+	RunTime     int    `json:"runtime"`
+	Rating      int    `json:"rating"`
 	MPAARating  string `json:"mpaa_rating"`
 }
 
@@ -108,19 +108,35 @@ func (app *application) editMovie(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var movie models.Movie
+
+	if payload.ID != "0" {
+		id, _ := strconv.Atoi(payload.ID)
+		// idからMovieデータを取得
+		m, _ := app.models.DB.Get(id)
+		// ポインタを渡してm == movieにする
+		movie = *m
+		movie.UpdatedAt = time.Now()
+	}
+
 	movie.ID, _ = strconv.Atoi(payload.ID)
 	movie.Title = payload.Title
 	movie.Description = payload.Description
 	movie.ReleaseDate, _ = time.Parse("2006-01-02", payload.ReleaseDate)
 	movie.Year = movie.ReleaseDate.Year()
-	movie.Runtime, _ = strconv.Atoi(payload.RunTime)
-	movie.Rating, _ = strconv.Atoi(payload.Rating)
+	movie.Runtime = payload.RunTime
+	movie.Rating = payload.Rating
 	movie.MPAARating = payload.MPAARating
 	movie.CreatedAt = time.Now()
 	movie.UpdatedAt = time.Now()
 
 	if movie.ID == 0 {
 		err = app.models.DB.InsertMovie(movie)
+		if err != nil {
+			app.errorJSON(w, err)
+			return
+		}
+	} else {
+		err = app.models.DB.UpdateMovie(movie)
 		if err != nil {
 			app.errorJSON(w, err)
 			return
@@ -132,6 +148,32 @@ func (app *application) editMovie(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = app.writeJSON(w, http.StatusOK, ok, "response")
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+}
+
+func (app *application) deleteMovie(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+
+	id, err := strconv.Atoi(params.ByName("id"))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	err = app.models.DB.DeleteMovie(id)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	ok := jsonResp{
+		OK: true,
+	}
+
+	err = app.writeJSON(w, http.StatusOK, ok, "reponse")
 	if err != nil {
 		app.errorJSON(w, err)
 		return
